@@ -1,3 +1,30 @@
-excel_builder.log
-/logs/
-/exportados/
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+
+# Distribution / packaging
+.Python
+env/
+venv/
+
+# mypy cache
+.mypy_cache/
+
+# Unit test / coverage reports
+.coverage
+.pytest_cache/
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Sensitive data
+.env
