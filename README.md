@@ -58,18 +58,28 @@ Excel Builder Pro es una aplicación de escritorio desarrollada en Python con tk
 
 ## Instalación
 
-### Requisitos del Sistema
+### Opción 1: Ejecutable (Recomendado)
+Para usuarios finales que no quieren instalar Python:
+
+1. **Descargar el ejecutable** desde la sección de releases
+2. **Ejecutar directamente** - No requiere instalación de Python
+3. **Listo para usar** - Incluye todas las dependencias
+
+### Opción 2: Código Fuente
+Para desarrolladores o usuarios avanzados:
+
+#### Requisitos del Sistema
 - Python 3.8 o superior
 - Windows 10/11 (recomendado)
 - 4GB RAM mínimo
 - 100MB espacio en disco
 
-### Dependencias
+#### Dependencias
 ```bash
-pip install pandas openpyxl xlrd tkinter
+pip install -r requirements.txt
 ```
 
-### Instalación desde Código Fuente
+#### Instalación desde Código Fuente
 ```bash
 # Clonar el repositorio
 git clone https://github.com/wilcastell/excel-builder-pro.git
@@ -81,6 +91,31 @@ pip install -r requirements.txt
 # Ejecutar la aplicación
 python main.py
 ```
+
+## 🚀 Crear Ejecutable
+
+### Método Rápido (Windows)
+```bash
+# Ejecutar el script de construcción
+build.bat
+```
+
+### Método Manual
+```bash
+# Instalar PyInstaller
+pip install pyinstaller
+
+# Construir ejecutable
+pyinstaller ExcelBuilderPro.spec
+
+# O usar el script Python
+python build_exe.py
+```
+
+### Ubicación del Ejecutable
+- **Archivo generado**: `dist/ExcelBuilderPro.exe`
+- **Tamaño aproximado**: 50-100 MB
+- **Compatible**: Windows 10/11 (64-bit)
 
 ## Uso Básico
 
