@@ -27,32 +27,48 @@ class ExportFrame(ttk.Frame):
         # Título
         title_label = ttk.Label(self, text="Exportación de Archivos", 
                                font=('Arial', 14, 'bold'))
-        title_label.pack(pady=(10, 20))
+        title_label.pack(pady=(10, 15))
         
-        # Frame principal
+        # Frame principal con distribución optimizada
         main_frame = ttk.Frame(self)
         main_frame.pack(fill='both', expand=True, padx=20)
         
-        # Panel de configuración de exportación
-        self._create_export_config(main_frame)
+        # PANEL SUPERIOR (50% del espacio) - Configuración y Resumen
+        top_frame = ttk.Frame(main_frame)
+        top_frame.pack(fill='x', pady=(0, 10))
         
-        # Panel de resumen
-        self._create_summary_panel(main_frame)
+        # Configuración de exportación (lado izquierdo)
+        config_frame = ttk.Frame(top_frame)
+        config_frame.pack(side='left', fill='both', expand=True, padx=(0, 5))
+        self._create_export_config(config_frame)
         
-        # Panel de vista previa
-        self._create_preview_panel(main_frame)
+        # Resumen de configuración (lado derecho)
+        summary_frame = ttk.Frame(top_frame)
+        summary_frame.pack(side='right', fill='both', expand=True, padx=(5, 0))
+        self._create_summary_panel(summary_frame)
         
-        # Panel de exportación
-        self._create_export_panel(main_frame)
+        # PANEL INFERIOR (50% del espacio) - Vista Previa y Exportación
+        bottom_frame = ttk.Frame(main_frame)
+        bottom_frame.pack(fill='both', expand=True)
+        
+        # Vista previa (parte superior del panel inferior)
+        preview_frame = ttk.Frame(bottom_frame)
+        preview_frame.pack(fill='both', expand=True, pady=(0, 10))
+        self._create_preview_panel(preview_frame)
+        
+        # Exportación (parte inferior del panel inferior)
+        export_frame = ttk.Frame(bottom_frame)
+        export_frame.pack(fill='x')
+        self._create_export_panel(export_frame)
         
     def _create_export_config(self, parent):
         """Crear configuración de exportación."""
-        config_frame = ttk.LabelFrame(parent, text="⚙️ Configuración de Exportación", padding=15)
-        config_frame.pack(fill='x', pady=(0, 10))
+        config_frame = ttk.LabelFrame(parent, text="⚙️ Configuración de Exportación", padding=10)
+        config_frame.pack(fill='both', expand=True)
         
         # Primera fila - Archivo y formato
         first_row = ttk.Frame(config_frame)
-        first_row.pack(fill='x', pady=(0, 10))
+        first_row.pack(fill='x', pady=(0, 8))
         
         # Archivo de destino
         file_frame = ttk.Frame(first_row)
@@ -61,33 +77,33 @@ class ExportFrame(ttk.Frame):
         ttk.Label(file_frame, text="Archivo de Destino:").pack(anchor='w')
         
         file_select_frame = ttk.Frame(file_frame)
-        file_select_frame.pack(fill='x', pady=(5, 0))
+        file_select_frame.pack(fill='x', pady=(3, 0))
         
         self.output_file_var = tk.StringVar()
-        self.output_entry = ttk.Entry(file_select_frame, textvariable=self.output_file_var, width=40)
+        self.output_entry = ttk.Entry(file_select_frame, textvariable=self.output_file_var)
         self.output_entry.pack(side='left', fill='x', expand=True)
         
         ttk.Button(file_select_frame, text="Examinar...", 
-                  command=self._select_output_file).pack(side='right', padx=(10, 0))
+                  command=self._select_output_file).pack(side='right', padx=(8, 0))
         
         # Formato
         format_frame = ttk.Frame(first_row)
-        format_frame.pack(side='right', padx=(20, 0))
+        format_frame.pack(side='right', padx=(15, 0))
         
         ttk.Label(format_frame, text="Formato:").pack(anchor='w')
         
         self.format_var = tk.StringVar(value="xlsx")
         format_combo = ttk.Combobox(format_frame, textvariable=self.format_var, 
                                    values=list(SUPPORTED_EXPORT_FORMATS.keys()), 
-                                   state='readonly', width=15)
-        format_combo.pack(pady=(5, 0))
+                                   state='readonly', width=12)
+        format_combo.pack(pady=(3, 0))
         
-        # Segunda fila - Opciones
+        # Segunda fila - Opciones y límites
         second_row = ttk.Frame(config_frame)
-        second_row.pack(fill='x', pady=10)
+        second_row.pack(fill='x', pady=8)
         
         # Opciones de exportación
-        options_frame = ttk.LabelFrame(second_row, text="Opciones", padding=10)
+        options_frame = ttk.LabelFrame(second_row, text="Opciones", padding=8)
         options_frame.pack(side='left', fill='both', expand=True)
         
         self.include_headers = tk.BooleanVar(value=True)
@@ -107,8 +123,8 @@ class ExportFrame(ttk.Frame):
                        variable=self.create_backup).pack(anchor='w')
         
         # Límites
-        limits_frame = ttk.LabelFrame(second_row, text="Límites", padding=10)
-        limits_frame.pack(side='right', fill='y', padx=(10, 0))
+        limits_frame = ttk.LabelFrame(second_row, text="Límites", padding=8)
+        limits_frame.pack(side='right', fill='y', padx=(8, 0))
         
         ttk.Label(limits_frame, text="Máximo de filas:").pack(anchor='w')
         self.max_rows = tk.IntVar(value=100000)
@@ -120,78 +136,68 @@ class ExportFrame(ttk.Frame):
         
     def _create_summary_panel(self, parent):
         """Crear panel de resumen de configuración."""
-        summary_frame = ttk.LabelFrame(parent, text="📋 Resumen de Configuración", padding=15)
-        summary_frame.pack(fill='x', pady=(0, 10))
+        summary_frame = ttk.LabelFrame(parent, text="📋 Resumen de Configuración", padding=10)
+        summary_frame.pack(fill='both', expand=True)
         
-        # Información de configuración
-        info_frame = ttk.Frame(summary_frame)
-        info_frame.pack(fill='x')
-        
-        # Columnas configuradas
-        self.columns_info = ttk.Label(info_frame, text="Columnas: No configuradas", 
-                                     foreground='red')
-        self.columns_info.pack(anchor='w')
-        
-        # Generador numérico (opcional)
-        self.numeric_info = ttk.Label(info_frame, text="Generador numérico: No configurado", 
-                                     foreground='gray')
-        self.numeric_info.pack(anchor='w')
-        
-        # Mapeo (opcional) 
-        self.mapping_info = ttk.Label(info_frame, text="Mapeo: No configurado", 
-                                     foreground='gray')
-        self.mapping_info.pack(anchor='w')
-        
-        # Estado general
-        self.validation_summary = ttk.Label(info_frame, text="⚠️ Configuración incompleta", 
-                                           foreground='orange', font=('Arial', 10, 'bold'))
-        self.validation_summary.pack(anchor='w', pady=(10, 0))
-        
-        # Frame con dos columnas
+        # Frame con dos columnas para mejor organización
         summary_content = ttk.Frame(summary_frame)
-        summary_content.pack(fill='x')
+        summary_content.pack(fill='both', expand=True)
         
         # Columna izquierda
         left_summary = ttk.Frame(summary_content)
-        left_summary.pack(side='left', fill='x', expand=True)
+        left_summary.pack(side='left', fill='both', expand=True)
         
+        # Estado general (más prominente)
+        self.validation_summary = ttk.Label(left_summary, text="⚠️ Configuración incompleta", 
+                                           foreground='orange', font=('Arial', 10, 'bold'))
+        self.validation_summary.pack(anchor='w', pady=(0, 8))
+        
+        # Columnas configuradas
         self.columns_summary = ttk.Label(left_summary, text="Columnas: No configuradas", 
                                         foreground='gray')
         self.columns_summary.pack(anchor='w')
         
+        # Generador numérico (opcional)
         self.numeric_summary = ttk.Label(left_summary, text="Generador numérico: No configurado", 
                                         foreground='gray')
         self.numeric_summary.pack(anchor='w')
         
         # Columna derecha
         right_summary = ttk.Frame(summary_content)
-        right_summary.pack(side='right', fill='x', expand=True)
+        right_summary.pack(side='right', fill='both', expand=True)
         
+        # Mapeo (opcional) 
         self.mapping_summary = ttk.Label(right_summary, text="Mapeo: No configurado", 
                                         foreground='gray')
         self.mapping_summary.pack(anchor='w')
         
-        self.validation_summary = ttk.Label(right_summary, text="Validación: Pendiente", 
-                                           foreground='orange')
-        self.validation_summary.pack(anchor='w')
+        # Validación
+        self.validation_status = ttk.Label(right_summary, text="Validación: Pendiente", 
+                                          foreground='orange')
+        self.validation_status.pack(anchor='w')
         
         # Información de división de archivos
         self.split_info = ttk.Label(right_summary, text="", foreground='blue')
         self.split_info.pack(anchor='w', pady=(5, 0))
         
+        # Labels de respaldo para compatibilidad
+        self.columns_info = self.columns_summary
+        self.numeric_info = self.numeric_summary
+        self.mapping_info = self.mapping_summary
+        
     def _create_preview_panel(self, parent):
         """Crear panel de vista previa."""
-        preview_frame = ttk.LabelFrame(parent, text="👁️ Vista Previa del Resultado", padding=15)
-        preview_frame.pack(fill='both', expand=True, pady=(0, 10))
+        preview_frame = ttk.LabelFrame(parent, text="👁️ Vista Previa del Resultado", padding=10)
+        preview_frame.pack(fill='both', expand=True)
         
         # Controles de vista previa
         controls_frame = ttk.Frame(preview_frame)
-        controls_frame.pack(fill='x', pady=(0, 10))
+        controls_frame.pack(fill='x', pady=(0, 8))
         
         ttk.Button(controls_frame, text="Generar Vista Previa", 
                   command=self._generate_preview).pack(side='left')
         
-        ttk.Label(controls_frame, text="Filas a mostrar:").pack(side='left', padx=(20, 5))
+        ttk.Label(controls_frame, text="Filas a mostrar:").pack(side='left', padx=(15, 5))
         self.preview_rows = tk.IntVar(value=20)
         ttk.Entry(controls_frame, textvariable=self.preview_rows, width=8).pack(side='left')
         
@@ -203,7 +209,7 @@ class ExportFrame(ttk.Frame):
         preview_list_frame = ttk.Frame(preview_frame)
         preview_list_frame.pack(fill='both', expand=True)
         
-        self.preview_tree = ttk.Treeview(preview_list_frame, show='headings', height=8)
+        self.preview_tree = ttk.Treeview(preview_list_frame, show='headings', height=6)
         
         preview_scrollbar_v = ttk.Scrollbar(preview_list_frame, orient='vertical', 
                                            command=self.preview_tree.yview)
@@ -219,7 +225,7 @@ class ExportFrame(ttk.Frame):
         
     def _create_export_panel(self, parent):
         """Crear panel de exportación."""
-        export_frame = ttk.LabelFrame(parent, text="📤 Exportación", padding=15)
+        export_frame = ttk.LabelFrame(parent, text="📤 Exportación", padding=10)
         export_frame.pack(fill='x')
         
         # Botones de acción
@@ -231,21 +237,21 @@ class ExportFrame(ttk.Frame):
         
         ttk.Button(buttons_frame, text="Exportar Archivo", 
                   command=self._export_file, 
-                  style='Accent.TButton').pack(side='left', padx=(10, 0))
+                  style='Accent.TButton').pack(side='left', padx=(8, 0))
         
         ttk.Button(buttons_frame, text="Abrir Carpeta de Destino", 
                   command=self._open_output_folder).pack(side='right')
         
         # Barra de progreso
         progress_frame = ttk.Frame(export_frame)
-        progress_frame.pack(fill='x', pady=(10, 0))
+        progress_frame.pack(fill='x', pady=(8, 0))
         
         self.export_progress = ttk.Progressbar(progress_frame, mode='determinate')
         self.export_progress.pack(fill='x')
         
         self.export_status = ttk.Label(progress_frame, text="Listo para exportar", 
                                       foreground='gray')
-        self.export_status.pack(pady=(5, 0))
+        self.export_status.pack(pady=(3, 0))
         
     def update_column_config(self, config_data: Dict):
         """Actualizar configuración de columnas."""
