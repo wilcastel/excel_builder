@@ -122,45 +122,80 @@ class UtilitiesFrame(ttk.Frame):
     
     def setup_duplicates_ui(self):
         """Configurar interfaz para eliminación de duplicados"""
-        # Frame principal
+        # Frame principal con distribución optimizada
         main_frame = ttk.Frame(self.duplicates_frame)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        # Sección de archivo fuente
-        source_frame = ttk.LabelFrame(main_frame, text="Archivo Fuente", padding=10)
-        source_frame.pack(fill=tk.X, pady=(0, 10))
+        # PANEL SUPERIOR (50% del espacio) - Archivo Fuente y Criterios
+        top_frame = ttk.Frame(main_frame)
+        top_frame.pack(fill='x', pady=(0, 10))
+        
+        # Archivo Fuente (lado izquierdo)
+        source_frame = ttk.Frame(top_frame)
+        source_frame.pack(side='left', fill='both', expand=True, padx=(0, 5))
+        self._create_source_section(source_frame)
+        
+        # Criterios de Duplicados (lado derecho)
+        criteria_frame = ttk.Frame(top_frame)
+        criteria_frame.pack(side='right', fill='both', expand=True, padx=(5, 0))
+        self._create_criteria_section(criteria_frame)
+        
+        # PANEL INFERIOR (50% del espacio) - Vista Previa
+        bottom_frame = ttk.Frame(main_frame)
+        bottom_frame.pack(fill='both', expand=True)
+        
+        # Vista previa de duplicados
+        preview_frame = ttk.LabelFrame(bottom_frame, text="Vista Previa de Duplicados", padding=10)
+        preview_frame.pack(fill='both', expand=True)
+        
+        # Treeview para mostrar duplicados
+        self.duplicates_tree = ttk.Treeview(preview_frame, show="tree", height=8)
+        self.duplicates_tree.pack(fill=tk.BOTH, expand=True)
+        
+        # Scrollbar para treeview
+        tree_scrollbar = ttk.Scrollbar(preview_frame, orient=tk.VERTICAL, command=self.duplicates_tree.yview)
+        tree_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.duplicates_tree.config(yscrollcommand=tree_scrollbar.set)
+    
+    def _create_source_section(self, parent):
+        """Crea la sección de archivo fuente para la pestaña de duplicados"""
+        # Frame principal con LabelFrame
+        source_frame = ttk.LabelFrame(parent, text="📁 Archivo Fuente", padding=8)
+        source_frame.pack(fill='both', expand=True)
         
         # Selección de archivo
         file_frame = ttk.Frame(source_frame)
-        file_frame.pack(fill=tk.X)
+        file_frame.pack(fill=tk.X, pady=(0, 8))
         
         ttk.Label(file_frame, text="Archivo Excel:").pack(side=tk.LEFT)
         self.dup_file_path_var = tk.StringVar()
-        self.dup_file_path_entry = ttk.Entry(file_frame, textvariable=self.dup_file_path_var, width=50)
-        self.dup_file_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(10, 5))
+        self.dup_file_path_entry = ttk.Entry(file_frame, textvariable=self.dup_file_path_var)
+        self.dup_file_path_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(8, 5))
         
         ttk.Button(file_frame, text="Examinar...", command=self.select_duplicates_file).pack(side=tk.RIGHT)
         
         # Información del archivo
-        self.dup_file_info_label = ttk.Label(source_frame, text="No se ha seleccionado ningún archivo")
-        self.dup_file_info_label.pack(pady=(10, 0))
-        
-        # Sección de criterios de duplicados
-        criteria_frame = ttk.LabelFrame(main_frame, text="Criterios de Duplicados", padding=10)
-        criteria_frame.pack(fill=tk.X, pady=(0, 10))
+        self.dup_file_info_label = ttk.Label(source_frame, text="No se ha seleccionado ningún archivo", foreground='gray')
+        self.dup_file_info_label.pack(anchor=tk.W)
+    
+    def _create_criteria_section(self, parent):
+        """Crea la sección de criterios de duplicados para la pestaña de duplicados"""
+        # Frame principal con LabelFrame
+        criteria_frame = ttk.LabelFrame(parent, text="🔍 Criterios de Duplicados", padding=8)
+        criteria_frame.pack(fill='both', expand=True)
         
         # Lista de columnas disponibles
         columns_frame = ttk.Frame(criteria_frame)
-        columns_frame.pack(fill=tk.X, pady=(0, 10))
+        columns_frame.pack(fill=tk.X, pady=(0, 8))
         
         ttk.Label(columns_frame, text="Columnas disponibles:").pack(anchor=tk.W)
         
         # Frame para listbox y botones
         list_frame = ttk.Frame(columns_frame)
-        list_frame.pack(fill=tk.X, pady=(5, 0))
+        list_frame.pack(fill=tk.X, pady=(3, 0))
         
         # Lista de columnas disponibles
-        self.available_columns_listbox = tk.Listbox(list_frame, height=6, selectmode=tk.MULTIPLE)
+        self.available_columns_listbox = tk.Listbox(list_frame, height=4, selectmode=tk.MULTIPLE)
         self.available_columns_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Scrollbar para la lista
@@ -170,46 +205,33 @@ class UtilitiesFrame(ttk.Frame):
         
         # Botones para agregar/quitar criterios
         criteria_buttons_frame = ttk.Frame(criteria_frame)
-        criteria_buttons_frame.pack(fill=tk.X, pady=(10, 0))
+        criteria_buttons_frame.pack(fill=tk.X, pady=(8, 0))
         
-        ttk.Button(criteria_buttons_frame, text="Agregar Criterio", command=self.add_criteria).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(criteria_buttons_frame, text="Agregar Criterio", command=self.add_criteria).pack(side=tk.LEFT, padx=(0, 8))
         ttk.Button(criteria_buttons_frame, text="Limpiar Criterios", command=self.clear_criteria).pack(side=tk.LEFT)
         
         # Lista de criterios seleccionados
         selected_frame = ttk.Frame(criteria_frame)
-        selected_frame.pack(fill=tk.X, pady=(10, 0))
+        selected_frame.pack(fill=tk.X, pady=(8, 0))
         
         ttk.Label(selected_frame, text="Criterios seleccionados:").pack(anchor=tk.W)
         
-        self.selected_criteria_listbox = tk.Listbox(selected_frame, height=4)
-        self.selected_criteria_listbox.pack(fill=tk.X, pady=(5, 0))
+        self.selected_criteria_listbox = tk.Listbox(selected_frame, height=2)
+        self.selected_criteria_listbox.pack(fill=tk.X, pady=(3, 0))
         
         # Botones de acción
-        action_buttons_frame = ttk.Frame(main_frame)
-        action_buttons_frame.pack(fill=tk.X, pady=(10, 0))
+        action_buttons_frame = ttk.Frame(criteria_frame)
+        action_buttons_frame.pack(fill=tk.X, pady=(8, 0))
         
-        ttk.Button(action_buttons_frame, text="Buscar Duplicados", command=self.find_duplicates).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(action_buttons_frame, text="Buscar Duplicados", command=self.find_duplicates).pack(side=tk.LEFT, padx=(0, 8))
         self.export_duplicates_button = ttk.Button(action_buttons_frame, text="Exportar Duplicados", command=self.export_duplicates, state=tk.DISABLED)
-        self.export_duplicates_button.pack(side=tk.LEFT, padx=(0, 10))
+        self.export_duplicates_button.pack(side=tk.LEFT, padx=(0, 8))
         self.remove_duplicates_button = ttk.Button(action_buttons_frame, text="Eliminar Duplicados", command=self.remove_duplicates, state=tk.DISABLED)
         self.remove_duplicates_button.pack(side=tk.LEFT)
         
         # Información de duplicados
-        self.duplicates_info_label = ttk.Label(main_frame, text="")
-        self.duplicates_info_label.pack(pady=(10, 0))
-        
-        # Vista previa de duplicados
-        preview_frame = ttk.LabelFrame(main_frame, text="Vista Previa de Duplicados", padding=10)
-        preview_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
-        
-        # Treeview para mostrar duplicados
-        self.duplicates_tree = ttk.Treeview(preview_frame, show="tree")
-        self.duplicates_tree.pack(fill=tk.BOTH, expand=True)
-        
-        # Scrollbar para treeview
-        tree_scrollbar = ttk.Scrollbar(preview_frame, orient=tk.VERTICAL, command=self.duplicates_tree.yview)
-        tree_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.duplicates_tree.config(yscrollcommand=tree_scrollbar.set)
+        self.duplicates_info_label = ttk.Label(criteria_frame, text="", foreground='blue')
+        self.duplicates_info_label.pack(anchor=tk.W, pady=(5, 0))
     
     def select_source_file(self):
         """Seleccionar archivo fuente para división"""
