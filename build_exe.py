@@ -29,7 +29,7 @@ def build_executable():
         "--onefile",                    # Un solo archivo ejecutable
         "--windowed",                   # Sin consola (GUI app)
         "--name=ExcelBuilderPro",       # Nombre del ejecutable
-        "--icon=assets/icon.ico",       # Icono (si existe)
+        # "--icon=assets/icon.ico",       # Icono (si existe) - Comentado porque no existe
         "--add-data=config;config",     # Incluir archivos de configuración
         "--add-data=ui;ui",             # Incluir archivos de UI
         "--add-data=core;core",         # Incluir módulos core

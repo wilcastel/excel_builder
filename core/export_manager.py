@@ -205,24 +205,59 @@ class ExportManager:
                 if col_config.mapping_source in row.index:
                     source_value = str(row[col_config.mapping_source]).strip()
                     
+                    # Normalizar fechas si la columna fuente es 'Fecha'
+                    if col_config.mapping_source.lower() in ['fecha', 'date']:
+                        try:
+                            # Convertir datetime a formato dd/mm/yy
+                            from datetime import datetime
+                            if ' ' in source_value:  # Si tiene hora
+                                dt = datetime.strptime(source_value, '%Y-%m-%d %H:%M')
+                            else:
+                                dt = datetime.strptime(source_value, '%Y-%m-%d')
+                            source_value = dt.strftime('%d/%m/%y')
+                        except:
+                            pass  # Si falla la conversión, usar el valor original
+                    
+                    # Crear identificador único para este mapeo
+                    mapping_id = f"{col_config.mapping_source}_{col_config.mapping_key_column}_{col_config.mapping_value_column}"
+                    
                     # Usar cache para mapeos
-                    cache_key = f"{col_config.mapping_key_column}_{source_value}"
+                    cache_key = f"{mapping_id}_{source_value}"
                     if cache_key in self._mapping_cache:
                         return self._mapping_cache[cache_key]
                     
                     # Buscar en la configuración de mapeo
-                    if col_config.mapping_key_column in self.mapping_config:
-                        mapping_data = self.mapping_config[col_config.mapping_key_column]
+                    if mapping_id in self.mapping_config:
+                        mapping_info = self.mapping_config[mapping_id]
+                        mapping_data = mapping_info['mapping_dict']
+                        additional_keys = mapping_info.get('additional_keys', [])
+                        
+                        # Crear clave de búsqueda
+                        if additional_keys:
+                            # Clave compuesta con columnas adicionales
+                            search_parts = [source_value]
+                            
+                            # Agregar valores de columnas adicionales del archivo fuente
+                            for additional_col in additional_keys:
+                                if additional_col in row.index:
+                                    search_parts.append(str(row[additional_col]).strip())
+                                else:
+                                    search_parts.append("")
+                            
+                            search_key = "|".join(search_parts)
+                        else:
+                            # Búsqueda simple
+                            search_key = source_value
                         
                         # Buscar el valor en el mapeo (comparación exacta primero, luego case-insensitive)
-                        if source_value in mapping_data:
-                            result = mapping_data[source_value]
+                        if search_key in mapping_data:
+                            result = mapping_data[search_key]
                             self._mapping_cache[cache_key] = result
                             return result
                         
                         # Buscar con comparación case-insensitive
                         for key, value in mapping_data.items():
-                            if str(key).strip().lower() == source_value.lower():
+                            if str(key).strip().lower() == search_key.lower():
                                 result = value
                                 self._mapping_cache[cache_key] = result
                                 return result
@@ -231,7 +266,8 @@ class ExportManager:
                         self._mapping_cache[cache_key] = source_value
                         return source_value
                     else:
-                        return source_value
+                        # Si no hay configuración de mapeo, devolver vacío
+                        return ''
                 else:
                     return ''
                     

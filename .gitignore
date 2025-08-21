@@ -28,3 +28,30 @@ venv/
 
 # Sensitive data
 .env
+
+# Build and distribution files
+dist/
+build/
+*.spec
+*.exe
+
+# Export directories
+exportados/
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE specific files
+*.swp
+*.swo
+*~
+
+# Python cache directories
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local configuration files
+config.local.py
+settings.local.py

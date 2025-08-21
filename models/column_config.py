@@ -44,6 +44,8 @@ class ColumnConfig:
     mapping_source: Optional[str] = None
     mapping_key_column: Optional[str] = None
     mapping_value_column: Optional[str] = None
+    mapping_additional_keys: list = None  # Columnas adicionales para mapeo multi-columna
+    mapping_additional_keys_base: list = None  # Columnas correspondientes en el archivo base
     
     # Configuración de generación numérica
     is_numeric_generator: bool = False
@@ -58,6 +60,10 @@ class ColumnConfig:
         """Inicialización posterior"""
         if self.numeric_grouping_columns is None:
             self.numeric_grouping_columns = []
+        if self.mapping_additional_keys is None:
+            self.mapping_additional_keys = []
+        if self.mapping_additional_keys_base is None:
+            self.mapping_additional_keys_base = []
     
     def to_dict(self) -> Dict[str, Any]:
         """Convertir a diccionario"""
@@ -76,6 +82,8 @@ class ColumnConfig:
             "mapping_source": self.mapping_source,
             "mapping_key_column": self.mapping_key_column,
             "mapping_value_column": self.mapping_value_column,
+            "mapping_additional_keys": self.mapping_additional_keys,
+            "mapping_additional_keys_base": self.mapping_additional_keys_base,
             # Agregar campos de generador numérico
             "is_numeric_generator": self.is_numeric_generator,
             "numeric_start": self.numeric_start,
@@ -104,6 +112,8 @@ class ColumnConfig:
             mapping_source=data.get("mapping_source"),
             mapping_key_column=data.get("mapping_key_column"),
             mapping_value_column=data.get("mapping_value_column"),
+            mapping_additional_keys=data.get("mapping_additional_keys", []),
+            mapping_additional_keys_base=data.get("mapping_additional_keys_base", []),
             # Agregar campos de generador numérico
             is_numeric_generator=data.get("is_numeric_generator", False),
             numeric_start=data.get("numeric_start", 1),

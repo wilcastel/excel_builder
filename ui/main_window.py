@@ -202,14 +202,79 @@ class MainWindow:
                     # Crear diccionario de mapeo
                     mapping_dict = {}
                     for _, row in base_data.iterrows():
-                        key = str(row[col_config.mapping_key_column]).strip()
+                        # Crear clave compuesta si hay columnas adicionales
+                        if hasattr(col_config, 'mapping_additional_keys') and col_config.mapping_additional_keys:
+                            # Clave principal
+                            key_parts = [str(row[col_config.mapping_key_column]).strip()]
+                            
+                            # Agregar columnas adicionales
+                            for i, additional_col in enumerate(col_config.mapping_additional_keys):
+                                # Usar la columna correspondiente del archivo base si está especificada
+                                if (hasattr(col_config, 'mapping_additional_keys_base') and 
+                                    col_config.mapping_additional_keys_base and 
+                                    i < len(col_config.mapping_additional_keys_base)):
+                                    base_col = col_config.mapping_additional_keys_base[i]
+                                    if base_col in base_data.columns:
+                                        key_parts.append(str(row[base_col]).strip())
+                                    else:
+                                        key_parts.append("")
+                                else:
+                                    # Búsqueda automática por nombre similar (fallback)
+                                    found_col = None
+                                    
+                                    # 1. Búsqueda exacta
+                                    if additional_col in base_data.columns:
+                                        found_col = additional_col
+                                    # 2. Búsqueda por nombre similar
+                                    else:
+                                        # Mapeo de nombres comunes
+                                        name_mappings = {
+                                            'módulo': ['nombre programa', 'programa', 'tema'],
+                                            'nombre programa': ['módulo', 'programa', 'tema'],
+                                            'programa': ['módulo', 'nombre programa', 'tema'],
+                                            'tema': ['módulo', 'nombre programa', 'programa'],
+                                            'ciudad': ['dirección', 'ubicación'],
+                                            'dirección': ['ciudad', 'ubicación']
+                                        }
+                                        
+                                        # Buscar en el mapeo
+                                        for key, alternatives in name_mappings.items():
+                                            if additional_col.lower() in key or key in additional_col.lower():
+                                                for alt in alternatives:
+                                                    for col in base_data.columns:
+                                                        if alt.lower() in col.lower():
+                                                            found_col = col
+                                                            break
+                                                    if found_col:
+                                                        break
+                                            if found_col:
+                                                break
+                                    
+                                    if found_col:
+                                        key_parts.append(str(row[found_col]).strip())
+                                    else:
+                                        # Si no se encuentra, usar valor vacío
+                                        key_parts.append("")
+                            
+                            key = "|".join(key_parts)
+                        else:
+                            # Mapeo simple con una sola columna
+                            key = str(row[col_config.mapping_key_column]).strip()
+                        
                         value = row[col_config.mapping_value_column]
                         
                         if key and not pd.isna(key) and key != "":
                             mapping_dict[key] = value
                     
-                    # Guardar el mapeo usando la columna clave como identificador
-                    mapping_config[col_config.mapping_key_column] = mapping_dict
+                    # Crear identificador único para este mapeo
+                    mapping_id = f"{col_config.mapping_source}_{col_config.mapping_key_column}_{col_config.mapping_value_column}"
+                    mapping_config[mapping_id] = {
+                        'mapping_dict': mapping_dict,
+                        'source_column': col_config.mapping_source,
+                        'key_column': col_config.mapping_key_column,
+                        'value_column': col_config.mapping_value_column,
+                        'additional_keys': getattr(col_config, 'mapping_additional_keys', [])
+                    }
                     
                     self.logger.info(f"Mapeo creado para '{col_config.display_name}': {len(mapping_dict)} entradas")
         
