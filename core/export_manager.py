@@ -282,6 +282,120 @@ class ExportManager:
         # Si no hay columna fuente, devolver vacío
         return ''
     
+    def _apply_dynamic_mapping(self, row: pd.Series, col_config: ColumnConfig) -> Any:
+        """Aplicar mapeo dinámico a una fila específica"""
+        try:
+            # Obtener valor de la columna fuente
+            if col_config.mapping_source not in row.index:
+                return ''
+            
+            source_value = str(row[col_config.mapping_source]).strip()
+            
+            # Crear identificador único para este mapeo
+            mapping_id = f"{col_config.mapping_source}_{col_config.mapping_key_column}_{col_config.mapping_value_column}"
+            
+            # Usar cache para mapeos
+            cache_key = f"{mapping_id}_{source_value}"
+            if cache_key in self._mapping_cache:
+                return self._mapping_cache[cache_key]
+            
+            # Buscar en la configuración de mapeo
+            if self.mapping_config and mapping_id in self.mapping_config:
+                mapping_info = self.mapping_config[mapping_id]
+                mapping_data = mapping_info['mapping_dict']
+                additional_keys = mapping_info.get('additional_keys', [])
+                
+                # Crear clave de búsqueda
+                if additional_keys:
+                    # Clave compuesta con columnas adicionales
+                    search_parts = [source_value]
+                    
+                    # Agregar valores de columnas adicionales del archivo fuente
+                    for additional_col in additional_keys:
+                        if additional_col in row.index:
+                            search_parts.append(str(row[additional_col]).strip())
+                        else:
+                            search_parts.append("")
+                    
+                    search_key = "|".join(search_parts)
+                else:
+                    # Búsqueda simple
+                    search_key = source_value
+                
+                # Buscar el valor en el mapeo con múltiples estrategias
+                result = self._find_mapped_value(mapping_data, search_key, source_value)
+                self._mapping_cache[cache_key] = result
+                return result
+            else:
+                # Si no hay configuración de mapeo, devolver valor original
+                return source_value
+                
+        except Exception as e:
+            self.logger.error(f"Error aplicando mapeo para columna '{col_config.display_name}': {e}")
+            return row.get(col_config.mapping_source, '')
+    
+    def _find_mapped_value(self, mapping_data: Dict, search_key: str, default_value: Any) -> Any:
+        """Buscar valor en el diccionario de mapeo con diferentes estrategias"""
+        # 1. Búsqueda exacta
+        if search_key in mapping_data:
+            return mapping_data[search_key]
+        
+        # 2. Búsqueda case-insensitive
+        for key, value in mapping_data.items():
+            if str(key).strip().lower() == search_key.lower():
+                return value
+        
+        # 3. Búsqueda parcial (para casos donde hay espacios extra)
+        search_key_clean = search_key.strip()
+        for key, value in mapping_data.items():
+            if str(key).strip() == search_key_clean:
+                return value
+        
+        # 4. Búsqueda por similitud (para casos donde hay pequeñas diferencias)
+        for key, value in mapping_data.items():
+            key_str = str(key).strip()
+            if len(key_str) > 3 and len(search_key) > 3:
+                # Si más del 80% de los caracteres coinciden
+                similarity = self._calculate_similarity(key_str, search_key)
+                if similarity > 0.8:
+                    return value
+        
+        # 5. Si no se encuentra, devolver valor por defecto
+        return default_value
+    
+    def _calculate_similarity(self, str1: str, str2: str) -> float:
+        """Calcular similitud entre dos strings"""
+        try:
+            from difflib import SequenceMatcher
+            return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
+        except:
+            return 0.0
+    
+    def _normalize_date_value(self, date_value: str) -> str:
+        """Normalizar valor de fecha a formato dd/mm/yy"""
+        try:
+            if not date_value or date_value.strip() == "":
+                return ""
+            
+            # Si ya está en formato dd/mm/yy, devolver tal como está
+            if len(date_value.split('/')) == 3 and len(date_value.split('/')[2]) == 2:
+                return date_value
+            
+            # Intentar parsear diferentes formatos
+            for fmt in ['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%Y/%m/%d']:
+                try:
+                    dt = datetime.strptime(date_value, fmt)
+                    return dt.strftime('%d/%m/%y')
+                except ValueError:
+                    continue
+            
+            # Si no se puede parsear, devolver el valor original
+            return date_value
+            
+        except Exception as e:
+            self.logger.warning(f"Error normalizando fecha {date_value}: {e}")
+            return date_value
+    
     def create_preview_data(self, 
                       data: pd.DataFrame,
                       columns_config: List[ColumnConfig],

@@ -180,14 +180,17 @@ class MainWindow:
             messagebox.showerror("Error de Exportación", str(e))
     
     def _create_mapping_from_columns(self) -> dict:
-        """Crear configuración de mapeo desde las columnas configuradas"""
+        """Crear configuración de mapeo desde las columnas configuradas usando el nuevo MappingManager"""
         mapping_config = {}
         
         # Obtener datos del archivo base si está cargado
         if self.file_manager.base_df is None:
             return mapping_config
         
-        base_data = self.file_manager.base_df
+        # Configurar el MappingManager con los datos del archivo base
+        from core.mapping_manager import MappingManager
+        mapping_manager = MappingManager()
+        mapping_manager.set_base_dataframe(self.file_manager.base_df)
         
         # Revisar cada columna configurada que tenga mapeo dinámico
         for col_config in self.column_manager.get_all_columns():
@@ -195,88 +198,38 @@ class MainWindow:
                 hasattr(col_config, 'mapping_key_column') and col_config.mapping_key_column and 
                 hasattr(col_config, 'mapping_value_column') and col_config.mapping_value_column):
                 
-                # Verificar que las columnas existen en el archivo base
-                if (col_config.mapping_key_column in base_data.columns and 
-                    col_config.mapping_value_column in base_data.columns):
-                    
-                    # Crear diccionario de mapeo
-                    mapping_dict = {}
-                    for _, row in base_data.iterrows():
-                        # Crear clave compuesta si hay columnas adicionales
-                        if hasattr(col_config, 'mapping_additional_keys') and col_config.mapping_additional_keys:
-                            # Clave principal
-                            key_parts = [str(row[col_config.mapping_key_column]).strip()]
-                            
-                            # Agregar columnas adicionales
-                            for i, additional_col in enumerate(col_config.mapping_additional_keys):
-                                # Usar la columna correspondiente del archivo base si está especificada
-                                if (hasattr(col_config, 'mapping_additional_keys_base') and 
-                                    col_config.mapping_additional_keys_base and 
-                                    i < len(col_config.mapping_additional_keys_base)):
-                                    base_col = col_config.mapping_additional_keys_base[i]
-                                    if base_col in base_data.columns:
-                                        key_parts.append(str(row[base_col]).strip())
-                                    else:
-                                        key_parts.append("")
-                                else:
-                                    # Búsqueda automática por nombre similar (fallback)
-                                    found_col = None
-                                    
-                                    # 1. Búsqueda exacta
-                                    if additional_col in base_data.columns:
-                                        found_col = additional_col
-                                    # 2. Búsqueda por nombre similar
-                                    else:
-                                        # Mapeo de nombres comunes
-                                        name_mappings = {
-                                            'módulo': ['nombre programa', 'programa', 'tema'],
-                                            'nombre programa': ['módulo', 'programa', 'tema'],
-                                            'programa': ['módulo', 'nombre programa', 'tema'],
-                                            'tema': ['módulo', 'nombre programa', 'programa'],
-                                            'ciudad': ['dirección', 'ubicación'],
-                                            'dirección': ['ciudad', 'ubicación']
-                                        }
-                                        
-                                        # Buscar en el mapeo
-                                        for key, alternatives in name_mappings.items():
-                                            if additional_col.lower() in key or key in additional_col.lower():
-                                                for alt in alternatives:
-                                                    for col in base_data.columns:
-                                                        if alt.lower() in col.lower():
-                                                            found_col = col
-                                                            break
-                                                    if found_col:
-                                                        break
-                                            if found_col:
-                                                break
-                                    
-                                    if found_col:
-                                        key_parts.append(str(row[found_col]).strip())
-                                    else:
-                                        # Si no se encuentra, usar valor vacío
-                                        key_parts.append("")
-                            
-                            key = "|".join(key_parts)
-                        else:
-                            # Mapeo simple con una sola columna
-                            key = str(row[col_config.mapping_key_column]).strip()
+                try:
+                    # Verificar que las columnas existen en el archivo base
+                    if (col_config.mapping_key_column in self.file_manager.base_df.columns and 
+                        col_config.mapping_value_column in self.file_manager.base_df.columns):
                         
-                        value = row[col_config.mapping_value_column]
+                        # Obtener columnas adicionales si las hay
+                        additional_keys = getattr(col_config, 'mapping_additional_keys', [])
                         
-                        if key and not pd.isna(key) and key != "":
-                            mapping_dict[key] = value
-                    
-                    # Crear identificador único para este mapeo
-                    mapping_id = f"{col_config.mapping_source}_{col_config.mapping_key_column}_{col_config.mapping_value_column}"
-                    mapping_config[mapping_id] = {
-                        'mapping_dict': mapping_dict,
-                        'source_column': col_config.mapping_source,
-                        'key_column': col_config.mapping_key_column,
-                        'value_column': col_config.mapping_value_column,
-                        'additional_keys': getattr(col_config, 'mapping_additional_keys', [])
-                    }
-                    
-                    self.logger.info(f"Mapeo creado para '{col_config.display_name}': {len(mapping_dict)} entradas")
+                        # Crear mapeo dinámico usando el MappingManager
+                        mapping_id = mapping_manager.create_dynamic_mapping(
+                            source_column=col_config.mapping_source,
+                            base_key_column=col_config.mapping_key_column,
+                            base_value_column=col_config.mapping_value_column,
+                            additional_keys=additional_keys
+                        )
+                        
+                        # Obtener la configuración del mapeo creado
+                        mapping_info = mapping_manager.get_mapping_info(mapping_id)
+                        
+                        if mapping_info:
+                            mapping_config[mapping_id] = mapping_info
+                            
+                            # Obtener estadísticas del mapeo
+                            stats = mapping_manager.validate_mapping(mapping_id)
+                            self.logger.info(f"Mapeo creado para '{col_config.display_name}': {stats.get('total_entries', 0)} entradas")
+                            
+                            if additional_keys:
+                                self.logger.info(f"Columnas adicionales de referencia: {additional_keys}")
+                        
+                except Exception as e:
+                    self.logger.error(f"Error creando mapeo para columna '{col_config.display_name}': {e}")
+                    continue
         
         return mapping_config
             
