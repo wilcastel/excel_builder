@@ -19,8 +19,8 @@ class ColumnConfigDialog:
         # Crear ventana modal
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
-        self.dialog.geometry("500x600")
-        self.dialog.resizable(False, False)
+        self.dialog.geometry("500x550")
+        self.dialog.resizable(True, True)
         self.dialog.transient(parent)
         self.dialog.grab_set()
         
@@ -44,8 +44,8 @@ class ColumnConfigDialog:
         """Centrar ventana en la pantalla."""
         self.dialog.update_idletasks()
         x = (self.dialog.winfo_screenwidth() // 2) - (500 // 2)
-        y = (self.dialog.winfo_screenheight() // 2) - (600 // 2)
-        self.dialog.geometry(f"500x600+{x}+{y}")
+        y = (self.dialog.winfo_screenheight() // 2) - (550 // 2)
+        self.dialog.geometry(f"500x550+{x}+{y}")
     
     def _create_variables(self):
         """Crear variables de control."""
@@ -69,10 +69,14 @@ class ColumnConfigDialog:
         self.mapping_source_var = tk.StringVar()  # CORREGIDO: era mapping_source_column_var
         self.mapping_key_column_var = tk.StringVar()
         self.mapping_value_column_var = tk.StringVar()
+        
+        # Variables para columnas adicionales de mapeo
+        self.mapping_additional_keys_vars = {}
+        self.mapping_additional_keys_base_vars = {}
     
     def _create_widgets(self):
         """Crear widgets del diálogo."""
-        # Frame principal con scroll
+        # Frame principal
         main_frame = ttk.Frame(self.dialog)
         main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
@@ -85,12 +89,22 @@ class ColumnConfigDialog:
         notebook.add(basic_frame, text="Información Básica")
         self._create_basic_tab(basic_frame)
         
-        # Tab 2: Configuraciones avanzadas (SIN pestaña de Formato y Validación)
-        advanced_frame = ttk.Frame(notebook)
-        notebook.add(advanced_frame, text="Configuraciones Avanzadas")
-        self._create_advanced_tab(advanced_frame)
+        # Tab 2: Formato y Validación
+        format_frame = ttk.Frame(notebook)
+        notebook.add(format_frame, text="Formato y Validación")
+        self._create_format_tab(format_frame)
         
-        # Botones
+        # Tab 3: Generador Numérico
+        numeric_frame = ttk.Frame(notebook)
+        notebook.add(numeric_frame, text="Generador Numérico")
+        self._create_numeric_tab(numeric_frame)
+        
+        # Tab 4: Mapeo Dinámico
+        mapping_frame = ttk.Frame(notebook)
+        notebook.add(mapping_frame, text="Mapeo Dinámico")
+        self._create_mapping_tab(mapping_frame)
+        
+        # Botones (siempre visibles)
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill='x', pady=(10, 0))
         
@@ -148,22 +162,27 @@ class ColumnConfigDialog:
     
     def _create_format_tab(self, parent):
         """Crear tab de formato y validación."""
-        # Cadena de formato con ayuda
-        format_frame = ttk.Frame(parent)
-        format_frame.grid(row=0, column=0, columnspan=2, sticky='ew', pady=5)
+        # Formato personalizado
+        format_frame = ttk.LabelFrame(parent, text="📝 Formato Personalizado", padding=10)
+        format_frame.pack(fill='x', pady=(0, 10))
         
-        ttk.Label(format_frame, text="Formato personalizado:").pack(side='left')
+        # Formato con ejemplos inline
+        format_row = ttk.Frame(format_frame)
+        format_row.pack(fill='x', pady=2)
+        ttk.Label(format_row, text="Formato:").pack(side='left')
+        format_entry = ttk.Entry(format_row, textvariable=self.format_string_var, width=20)
+        format_entry.pack(side='left', padx=(10, 5))
+        ttk.Label(format_row, text="Ej: dd/mm/yyyy, #,##0.00, 0.00%", 
+                 foreground="gray", font=('TkDefaultFont', 8)).pack(side='left')
         
         # Botón de ayuda
-        help_btn = ttk.Button(format_frame, text="?", width=3, 
+        help_btn = ttk.Button(format_frame, text="❓ Ayuda", 
                              command=self._show_format_help)
-        help_btn.pack(side='right')
-        
-        ttk.Entry(parent, textvariable=self.format_string_var, width=40).grid(row=1, column=0, columnspan=2, sticky='ew', pady=5)
+        help_btn.pack(anchor='w', pady=(5, 0))
         
         # Ejemplos comunes
-        examples_frame = ttk.LabelFrame(parent, text="Ejemplos Comunes", padding=5)
-        examples_frame.grid(row=2, column=0, columnspan=2, sticky='ew', pady=10)
+        examples_frame = ttk.LabelFrame(parent, text="📋 Ejemplos Comunes", padding=10)
+        examples_frame.pack(fill='x', pady=(0, 10))
         
         examples = [
             ("Fecha: dd/mm/yyyy", "25/12/2024"),
@@ -174,17 +193,19 @@ class ColumnConfigDialog:
         
         for i, (format_ex, result_ex) in enumerate(examples):
             ttk.Label(examples_frame, text=f"{format_ex} → {result_ex}", 
-                     font=('TkDefaultFont', 8)).grid(row=i, column=0, sticky='w', padx=5)
+                     font=('TkDefaultFont', 9)).pack(anchor='w', pady=1)
         
-        # Ancho de columna
-        ttk.Label(parent, text="Ancho de columna:").grid(row=1, column=0, sticky='w', pady=5)
-        ttk.Entry(parent, textvariable=self.width_var, width=40).grid(row=1, column=1, sticky='ew', pady=5)
+        # Opciones adicionales
+        options_frame = ttk.LabelFrame(parent, text="⚙️ Opciones Adicionales", padding=10)
+        options_frame.pack(fill='x')
         
-        # Requerida
-        ttk.Checkbutton(parent, text="Campo requerido",
-                       variable=self.required_var).grid(row=2, column=0, columnspan=2, sticky='w', pady=5)
-        
-        parent.columnconfigure(1, weight=1)
+        # Ancho y requerido en una fila
+        options_row = ttk.Frame(options_frame)
+        options_row.pack(fill='x', pady=5)
+        ttk.Label(options_row, text="Ancho:").pack(side='left')
+        ttk.Entry(options_row, textvariable=self.width_var, width=8).pack(side='left', padx=(5, 15))
+        ttk.Checkbutton(options_row, text="Campo requerido", 
+                       variable=self.required_var).pack(side='left')
     
     def _show_format_help(self):
         """Mostrar ayuda de formatos"""
@@ -211,40 +232,15 @@ class ColumnConfigDialog:
         """
         messagebox.showinfo("Ayuda de Formatos", help_text)
     
-    def _create_advanced_tab(self, parent):
-        """Crear tab de configuraciones avanzadas consolidado."""
-        
-        # SECCIÓN 1: FORMATO Y VALIDACIÓN
-        format_frame = ttk.LabelFrame(parent, text="📝 Formato y Validación", padding=10)
-        format_frame.pack(fill='x', pady=(0, 10))
-        
-        # Formato personalizado con ejemplos inline
-        format_row = ttk.Frame(format_frame)
-        format_row.pack(fill='x', pady=2)
-        ttk.Label(format_row, text="Formato:").pack(side='left')
-        format_entry = ttk.Entry(format_row, textvariable=self.format_string_var, width=20)
-        format_entry.pack(side='left', padx=(10, 5))
-        ttk.Label(format_row, text="Ej: dd/mm/yyyy, #,##0.00, 0.00%", 
-                 foreground="gray", font=('TkDefaultFont', 8)).pack(side='left')
-        
-        # Ancho y requerido en una fila
-        options_row = ttk.Frame(format_frame)
-        options_row.pack(fill='x', pady=5)
-        ttk.Label(options_row, text="Ancho:").pack(side='left')
-        ttk.Entry(options_row, textvariable=self.width_var, width=8).pack(side='left', padx=(5, 15))
-        ttk.Checkbutton(options_row, text="Campo requerido", 
-                       variable=self.required_var).pack(side='left')
-        
-        # SECCIÓN 2: GENERADOR NUMÉRICO
-        numeric_frame = ttk.LabelFrame(parent, text="🔢 Generador Numérico", padding=10)
-        numeric_frame.pack(fill='x', pady=(0, 10))
-        
-        ttk.Checkbutton(numeric_frame, text="Activar generador numérico",
+    def _create_numeric_tab(self, parent):
+        """Crear tab de generador numérico."""
+        # Activar/desactivar opciones
+        ttk.Checkbutton(parent, text="Activar generador numérico",
                        variable=self.is_numeric_generator_var,
                        command=self._toggle_numeric_options).pack(anchor='w')
         
         # Opciones del generador (se habilitan/deshabilitan)
-        self.numeric_options_frame = ttk.Frame(numeric_frame)
+        self.numeric_options_frame = ttk.Frame(parent)
         self.numeric_options_frame.pack(fill='x', pady=(10, 0))
         
         # Número inicial
@@ -269,22 +265,30 @@ class ColumnConfigDialog:
             ttk.Checkbutton(group_frame, text=col, variable=var).grid(
                 row=i//3, column=i%3, sticky='w', padx=5, pady=2)
         
-        # SECCIÓN 3: MAPEO DINÁMICO
-        mapping_frame = ttk.LabelFrame(parent, text="🔗 Mapeo Dinámico", padding=10)
-        mapping_frame.pack(fill='x')
-        
-        ttk.Checkbutton(mapping_frame, text="Activar mapeo dinámico",
+        # Inicializar estados
+        self._toggle_numeric_options()
+    
+    def _toggle_numeric_options(self):
+        """Habilitar/deshabilitar opciones del generador numérico"""
+        state = 'normal' if self.is_numeric_generator_var.get() else 'disabled'
+        for widget in self.numeric_options_frame.winfo_children():
+            self._set_widget_state(widget, state)
+    
+    def _create_mapping_tab(self, parent):
+        """Crear tab de mapeo dinámico."""
+        # Activar/desactivar opciones
+        ttk.Checkbutton(parent, text="Activar mapeo dinámico",
                        variable=self.is_mapping_enabled_var,
                        command=self._toggle_mapping_options).pack(anchor='w')
         
         # Explicación clara
-        info_label = ttk.Label(mapping_frame, 
+        info_label = ttk.Label(parent, 
                               text="💡 Busca valores en el archivo base usando una columna como referencia",
                               foreground="blue", font=('TkDefaultFont', 8))
         info_label.pack(anchor='w', pady=(5, 10))
         
         # Opciones de mapeo
-        self.mapping_options_frame = ttk.Frame(mapping_frame)
+        self.mapping_options_frame = ttk.Frame(parent)
         self.mapping_options_frame.pack(fill='x')
         
         # Columna de referencia (del archivo fuente)
@@ -325,15 +329,31 @@ class ColumnConfigDialog:
                  text="Archivo fuente tiene 'codigo_empleado' → buscar en archivo base → obtener 'nombre_empleado'",
                  font=('TkDefaultFont', 8), foreground="gray").pack(anchor='w')
         
+        # SECCIÓN: COLUMNAS ADICIONALES DE REFERENCIA (OPCIONAL)
+        additional_frame = ttk.Frame(self.mapping_options_frame)
+        additional_frame.pack(fill='x', pady=(15, 0))
+        
+        # Título y explicación
+        ttk.Label(additional_frame, text="🔗 Columnas adicionales de referencia (opcional):", 
+                 font=('TkDefaultFont', 9, 'bold')).pack(anchor='w')
+        ttk.Label(additional_frame, 
+                 text="💡 Usar para evitar ambigüedades cuando una sola columna no es suficiente",
+                 font=('TkDefaultFont', 8), foreground="blue").pack(anchor='w', pady=(0, 10))
+        
+        # Frame con scroll para columnas adicionales
+        additional_scroll_frame = ttk.Frame(additional_frame)
+        additional_scroll_frame.pack(fill='x')
+        
+        # Crear checkboxes para cada columna del archivo fuente
+        self.mapping_additional_keys_vars = {}
+        for i, col in enumerate(self.source_columns):
+            var = tk.BooleanVar()
+            self.mapping_additional_keys_vars[col] = var
+            ttk.Checkbutton(additional_scroll_frame, text=col, variable=var).grid(
+                row=i//3, column=i%3, sticky='w', padx=5, pady=2)
+        
         # Inicializar estados
-        self._toggle_numeric_options()
         self._toggle_mapping_options()
-    
-    def _toggle_numeric_options(self):
-        """Habilitar/deshabilitar opciones del generador numérico"""
-        state = 'normal' if self.is_numeric_generator_var.get() else 'disabled'
-        for widget in self.numeric_options_frame.winfo_children():
-            self._set_widget_state(widget, state)
     
     def _toggle_mapping_options(self):
         """Habilitar/deshabilitar opciones de mapeo"""
@@ -410,6 +430,12 @@ class ColumnConfigDialog:
         if config.mapping_value_column:
             self.mapping_value_column_var.set(config.mapping_value_column)
         
+        # Cargar columnas adicionales de mapeo
+        if config.mapping_additional_keys:
+            for col_name in config.mapping_additional_keys:
+                if col_name in self.mapping_additional_keys_vars:
+                    self.mapping_additional_keys_vars[col_name].set(True)
+        
         # Actualizar estados de los widgets después de cargar
         self._toggle_numeric_options()
         self._toggle_mapping_options()
@@ -461,6 +487,12 @@ class ColumnConfigDialog:
                 grouping_columns = [col for col, var in self.group_columns_vars.items() if var.get()]
                 print(f"DEBUG: Columnas de agrupación seleccionadas: {grouping_columns}")
             
+            # Obtener columnas adicionales de mapeo seleccionadas
+            additional_keys = []
+            if hasattr(self, 'mapping_additional_keys_vars'):
+                additional_keys = [col for col, var in self.mapping_additional_keys_vars.items() if var.get()]
+                print(f"DEBUG: Columnas adicionales de referencia seleccionadas: {additional_keys}")
+            
             # Crear configuración
             self.result = ColumnConfig(
                 name=self.name_var.get().strip(),
@@ -478,7 +510,8 @@ class ColumnConfigDialog:
                 numeric_grouping_columns=grouping_columns,  # CORREGIDO: Incluir columnas de agrupación
                 mapping_source=self.mapping_source_var.get().strip() or None if self.is_mapping_enabled_var.get() else None,
                 mapping_key_column=self.mapping_key_column_var.get().strip() or None if self.is_mapping_enabled_var.get() else None,
-                mapping_value_column=self.mapping_value_column_var.get().strip() or None if self.is_mapping_enabled_var.get() else None
+                mapping_value_column=self.mapping_value_column_var.get().strip() or None if self.is_mapping_enabled_var.get() else None,
+                mapping_additional_keys=additional_keys if self.is_mapping_enabled_var.get() else []
             )
             
             self.dialog.destroy()
