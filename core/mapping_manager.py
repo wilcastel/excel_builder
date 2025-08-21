@@ -70,11 +70,19 @@ class MappingManager:
                             found_col = self._find_corresponding_base_column(additional_col)
                             if found_col and found_col in row.index:
                                 key_parts.append(str(row[found_col]).strip())
-                            else:
-                                key_parts.append("")
+                            # Si no encuentra la columna, NO agregar nada (omitir esa columna)
                         
-                        # Crear clave compuesta
+                        # Crear clave compuesta solo con las columnas que existen
                         key = "|".join(key_parts)
+                        
+                        # Guardar las columnas adicionales que realmente se usaron
+                        if not hasattr(self, '_used_additional_keys'):
+                            self._used_additional_keys = {}
+                        self._used_additional_keys[mapping_id] = [
+                            col for col in additional_keys 
+                            if self._find_corresponding_base_column(col) and 
+                            self._find_corresponding_base_column(col) in self.base_df.columns
+                        ]
                     
                     # Normalizar el valor según el tipo de dato
                     normalized_value = self._normalize_value(value, base_value_column)
@@ -230,6 +238,10 @@ class MappingManager:
             source_column = mapping_info['source_column']
             additional_keys = mapping_info.get('additional_keys', [])
             
+            # Usar solo las columnas adicionales que realmente existen en el archivo base
+            if hasattr(self, '_used_additional_keys') and mapping_id in self._used_additional_keys:
+                additional_keys = self._used_additional_keys[mapping_id]
+            
             # Validar que la columna fuente existe
             if source_column not in source_df.columns:
                 raise ValueError(f"Columna fuente no encontrada: {source_column}")
@@ -259,8 +271,7 @@ class MappingManager:
                             if additional_col in row.index:
                                 additional_value = str(row[additional_col]).strip()
                                 search_parts.append(additional_value)
-                            else:
-                                search_parts.append("")
+                            # Si no encuentra la columna, NO agregar nada (omitir esa columna)
                         
                         search_key = "|".join(search_parts)
                     else:
@@ -299,8 +310,18 @@ class MappingManager:
             if len(date_value.split('/')) == 3 and len(date_value.split('/')[2]) == 2:
                 return date_value
             
+            # Manejar formato datetime de Excel (YYYY-MM-DD HH:MM:SS)
+            if ' ' in date_value and '-' in date_value:
+                # Extraer solo la parte de la fecha
+                date_part = date_value.split(' ')[0]
+                try:
+                    dt = datetime.strptime(date_part, '%Y-%m-%d')
+                    return dt.strftime('%d/%m/%y')
+                except ValueError:
+                    pass
+            
             # Intentar parsear diferentes formatos
-            for fmt in ['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%Y/%m/%d']:
+            for fmt in ['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%Y/%m/%d', '%Y-%m-%d %H:%M:%S']:
                 try:
                     dt = datetime.strptime(date_value, fmt)
                     return dt.strftime('%d/%m/%y')

@@ -18,6 +18,8 @@ class ExportManager:
     """Gestor para exportación de archivos Excel con formato - Versión Optimizada"""
     
     def __init__(self, settings: AppSettings):
+
+        
         self.settings = settings
         self.workbook = None
         self.worksheet = None
@@ -200,80 +202,8 @@ class ExportManager:
             hasattr(col_config, 'mapping_value_column') and col_config.mapping_value_column and 
             self.mapping_config):
             
-            try:
-                # Obtener valor de la columna fuente
-                if col_config.mapping_source in row.index:
-                    source_value = str(row[col_config.mapping_source]).strip()
-                    
-                    # Normalizar fechas si la columna fuente es 'Fecha'
-                    if col_config.mapping_source.lower() in ['fecha', 'date']:
-                        try:
-                            # Convertir datetime a formato dd/mm/yy
-                            from datetime import datetime
-                            if ' ' in source_value:  # Si tiene hora
-                                dt = datetime.strptime(source_value, '%Y-%m-%d %H:%M')
-                            else:
-                                dt = datetime.strptime(source_value, '%Y-%m-%d')
-                            source_value = dt.strftime('%d/%m/%y')
-                        except:
-                            pass  # Si falla la conversión, usar el valor original
-                    
-                    # Crear identificador único para este mapeo
-                    mapping_id = f"{col_config.mapping_source}_{col_config.mapping_key_column}_{col_config.mapping_value_column}"
-                    
-                    # Usar cache para mapeos
-                    cache_key = f"{mapping_id}_{source_value}"
-                    if cache_key in self._mapping_cache:
-                        return self._mapping_cache[cache_key]
-                    
-                    # Buscar en la configuración de mapeo
-                    if mapping_id in self.mapping_config:
-                        mapping_info = self.mapping_config[mapping_id]
-                        mapping_data = mapping_info['mapping_dict']
-                        additional_keys = mapping_info.get('additional_keys', [])
-                        
-                        # Crear clave de búsqueda
-                        if additional_keys:
-                            # Clave compuesta con columnas adicionales
-                            search_parts = [source_value]
-                            
-                            # Agregar valores de columnas adicionales del archivo fuente
-                            for additional_col in additional_keys:
-                                if additional_col in row.index:
-                                    search_parts.append(str(row[additional_col]).strip())
-                                else:
-                                    search_parts.append("")
-                            
-                            search_key = "|".join(search_parts)
-                        else:
-                            # Búsqueda simple
-                            search_key = source_value
-                        
-                        # Buscar el valor en el mapeo (comparación exacta primero, luego case-insensitive)
-                        if search_key in mapping_data:
-                            result = mapping_data[search_key]
-                            self._mapping_cache[cache_key] = result
-                            return result
-                        
-                        # Buscar con comparación case-insensitive
-                        for key, value in mapping_data.items():
-                            if str(key).strip().lower() == search_key.lower():
-                                result = value
-                                self._mapping_cache[cache_key] = result
-                                return result
-                        
-                        # Si no se encuentra, devolver valor original
-                        self._mapping_cache[cache_key] = source_value
-                        return source_value
-                    else:
-                        # Si no hay configuración de mapeo, devolver vacío
-                        return ''
-                else:
-                    return ''
-                    
-            except Exception as e:
-                self.logger.error(f"Error aplicando mapeo para columna '{col_config.display_name}': {e}")
-                return row.get(col_config.mapping_source, '')
+            # Usar nuestro método _apply_dynamic_mapping actualizado
+            return self._apply_dynamic_mapping(row, col_config)
         
         # Si no es generador ni mapeo, obtener valor de columna fuente
         if hasattr(col_config, 'source_column') and col_config.source_column and col_config.source_column in row.index:
@@ -290,6 +220,12 @@ class ExportManager:
                 return ''
             
             source_value = str(row[col_config.mapping_source]).strip()
+            
+
+            
+            # Normalizar fechas si es necesario
+            if col_config.mapping_source.lower() in ['fecha', 'date', 'fecha (dd/mm/aa)']:
+                source_value = self._normalize_date_value(source_value)
             
             # Crear identificador único para este mapeo
             mapping_id = f"{col_config.mapping_source}_{col_config.mapping_key_column}_{col_config.mapping_value_column}"
@@ -313,9 +249,12 @@ class ExportManager:
                     # Agregar valores de columnas adicionales del archivo fuente
                     for additional_col in additional_keys:
                         if additional_col in row.index:
-                            search_parts.append(str(row[additional_col]).strip())
-                        else:
-                            search_parts.append("")
+                            additional_value = str(row[additional_col]).strip()
+                            # Normalizar fechas adicionales si es necesario
+                            if additional_col.lower() in ['fecha', 'date', 'fecha (dd/mm/aa)']:
+                                additional_value = self._normalize_date_value(additional_value)
+                            search_parts.append(additional_value)
+                        # Si no encuentra la columna, NO agregar nada (omitir esa columna)
                     
                     search_key = "|".join(search_parts)
                 else:
@@ -323,12 +262,15 @@ class ExportManager:
                     search_key = source_value
                 
                 # Buscar el valor en el mapeo con múltiples estrategias
-                result = self._find_mapped_value(mapping_data, search_key, source_value)
+                result = self._find_mapped_value(mapping_data, search_key, None)
                 self._mapping_cache[cache_key] = result
+                
+
+                
                 return result
             else:
-                # Si no hay configuración de mapeo, devolver valor original
-                return source_value
+                # Si no hay configuración de mapeo, devolver None
+                return None
                 
         except Exception as e:
             self.logger.error(f"Error aplicando mapeo para columna '{col_config.display_name}': {e}")
@@ -381,8 +323,18 @@ class ExportManager:
             if len(date_value.split('/')) == 3 and len(date_value.split('/')[2]) == 2:
                 return date_value
             
+            # Manejar formato datetime de Excel (YYYY-MM-DD HH:MM:SS)
+            if ' ' in date_value and '-' in date_value:
+                # Extraer solo la parte de la fecha
+                date_part = date_value.split(' ')[0]
+                try:
+                    dt = datetime.strptime(date_part, '%Y-%m-%d')
+                    return dt.strftime('%d/%m/%y')
+                except ValueError:
+                    pass
+            
             # Intentar parsear diferentes formatos
-            for fmt in ['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%Y/%m/%d']:
+            for fmt in ['%Y-%m-%d', '%d-%m-%Y', '%d/%m/%Y', '%Y/%m/%d', '%Y-%m-%d %H:%M:%S']:
                 try:
                     dt = datetime.strptime(date_value, fmt)
                     return dt.strftime('%d/%m/%y')
